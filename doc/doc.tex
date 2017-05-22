@@ -1,0 +1,162 @@
+\documentclass[notitlepage,aps,pra,preprint]{revtex4-1}
+\usepackage{amssymb}
+\usepackage{amsmath,amsfonts,bm,graphicx}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{array}
+\usepackage[colorlinks=true,linkcolor=blue,urlcolor=blue,citecolor=blue]{hyperref}
+\graphicspath{ {res/} }
+\pdfoutput=1
+
+\begin{document}
+\title{Documentation for DPLM Simulation}
+\author{Ling-Han Zhang}
+\email[Email: ]{ns.zhang@connect.polyu.hk}
+\email{linghanz@cmu.edu}
+\homepage[Visit: ]{https://github.com/zhangns}
+\affiliation{Department of Applied Physics, Hong Kong Polytechnic University}
+\date{\today}
+\maketitle
+\tableofcontents\newpage
+
+\section{Overview}\label{sec:overview}
+
+This documentation describes the basic usage of the simulation program for the Distinguishable-Particle Lattice Model (DPLM) in 2D.
+
+\section{Preparation}\label{sec:prepare}
+
+\subsection{Prerequisites}\label{sub:prereq}
+
+For full features, one needs
+
+OS: Windows (confirmed), Linux (confirmed), or others.
+
+Simulation: recent versions of Visual Studio (confirmed) or GCC (confirmed), or other C++11 conforming compilers.
+
+Real-time visualization: libpng, and \href{http://www.fltk.org/}{FLTK} with OpenGL support. On Windows the packages are installed automatically by Visual Studio. On Linux, you may install them with APT: \texttt{sudo apt-get install libpng-dev libfltk1.3-dev}
+
+Data processing and plotting: MATLAB.
+
+\subsection{Building}\label{sub:build}
+
+The executable programs, \texttt{glass} and \texttt{batchglass}, need to be built from C++ source (found in \texttt{./src/}). On Windows, open and build the solution (\texttt{Glass.sln}) with Visual Studio. On Linux, simply locate \texttt{makefile}, and \texttt{make}
+
+\section{Simulation}\label{sec:simulation}
+
+\subsection{Parameters}\label{sub:parameters}
+
+\begin{table}[ht]
+\centering
+\caption{Input Parameters}
+\resizebox{\linewidth}{!}{
+\begin{tabular}{ | >{\ttfamily}c | >{\ttfamily}c | >{\ttfamily}c | >{\ttfamily}m{5mm} | >{\ttfamily}m{5mm} | l | }
+\hline
+\multicolumn{1}{|c|}{\textbf{Name}} &
+\multicolumn{1}{c|}{\textbf{Type}} &
+\multicolumn{1}{c|}{\textbf{Default}} &
+\multicolumn{1}{c|}{\textbf{MA}} &
+\multicolumn{1}{c|}{\textbf{MI}} &
+\multicolumn{1}{c|}{\textbf{Description}} \\ \hline \hline
+L       &  int     & 100      & \checkmark & \checkmark & Lattice side length.                                                                     \\ \hline
+N       &  int     & 9900     & \checkmark & \checkmark & Number of particles. Overrides.                                                          \\ \hline
+phi     &  double  &          & \checkmark & \checkmark & Particle concentration $\phi=N/L^2$. Overrides.                                          \\ \hline
+phiv    &  double  &          & \checkmark & \checkmark & Void concentration $\phi_v=1-\phi$. Overrides.                                           \\ \hline
+boltz   &  int     & -1       & \checkmark &            & Number of frozen particles in Boltzmann test. -1 = turn off test.                        \\ \hline
+seed    &  int     & 42       & \checkmark & \checkmark & Random seed for the RAN2 PRNG.                                                           \\ \hline
+resume  &  int     & 0        & \checkmark &            & Whether try to resume simulation.                                                        \\ \hline
+ap      &  int     & 1        & \checkmark & \checkmark & Equilibration mode. 0 = none. 1 = instant. 2 = instant + preheat.                        \\ \hline
+out     &  int     & 0        & \checkmark & \checkmark & Output mode. 0 = macromode. 1 = micromode.                                               \\ \hline
+ndt     &  int     & 10       & \checkmark &            & Number of \texttt{dt} to simulate. 0 = infinite.                                         \\ \hline
+nmcs    &  int     & 10000000 &            & \checkmark & Number of Monte Carlo steps (MCS) to simulate.                                           \\ \hline
+calmsd  &  int     & 0        &            & \checkmark & Whether compute mean square displacement $g(t)$.                                         \\ \hline
+calsisf &  int     & 0        &            & \checkmark & Whether compute self-intermediate scattering function $F_s(k,t)$.                        \\ \hline
+calfpcf &  int     & 0        &            & \checkmark & Whether compute four-point correlation function $S_4(k,q,t)$.                            \\ \hline
+calpret &  int     & 0        &            & \checkmark & Whether compute returning and non-returning hopping probabilities $P_{ret}$ and $P_{2}$. \\ \hline
+Vmin    &  double  & -0.5     & \checkmark & \checkmark & Minimum bond energy ($V_{ijkl} \in [V_{min}, V_{min} + 1]$).                             \\ \hline
+T       &  double  & 0.2      & \checkmark & \checkmark & Temperature.                                                                             \\ \hline
+dt      &  double  & 1e6      & \checkmark & \checkmark & Time interval. In micromode, -1 = let \texttt{dt} $\approx$ 1 MCS.                       \\ \hline
+frinc   &  double  & 1.4      &            & \checkmark & Fractional increment of $t$ for measurements.                                            \\ \hline
+k       &  ints    & 25       &            & \checkmark & Comma-separated reduced wavenumbers for $F_s(k,t)$ where $k=2\pi \texttt{k}/L$.          \\ \hline
+q       &  ints    &          &            & \checkmark & Comma-separated reduced wavenumbers for $S_4(k,q,t)$. Do not include $\texttt{q} = 0$.   \\ \hline
+\end{tabular}
+}
+\label{tab:param}
+\end{table}
+
+Possible input parameters to a simulation run are given in Table \ref{tab:param}. Parameters are processed in \texttt{Config.cpp}. You can choose to run a simulation in either of two output modes, macromode (default option) and micromode. Columns ``MA" and ``MI" in the table tell if a parameter is relevant under the two modes respectively. Under macromode, the program dumps particle coordinates to file \texttt{traj} periodically in every time interval \texttt{dt}. This is suitable for measurements over long time scales (typically $\texttt{dt}>10^6$ MCS). Note that measurements over time scales shorter than \texttt{dt} cannot be done based on the particle trajectories dumped. Under micromode, the program performs \texttt{nmcs} MCS and directly computes quantities as requested, e.g. $g(t=\texttt{dt})$, $g(t=\texttt{frinc}\times\texttt{dt})$, $g(t=\texttt{frinc}^2\times\texttt{dt})$, etc.. This is suitable for measurements over short time scales (typically 1 MCS $\sim 10^8$ MCS). The two output modes are implemented in \texttt{MacroMode.cpp} and \texttt{MicroMode.cpp}. All output files are plain-text and use the most straightforward format.
+
+\subsection{Single run with visualization}\label{sub:runglass}
+
+The executable \texttt{glass} performs a single run and provides real-time visualization within a GUI. The input parameters are supplied with command-line arguments, with the format
+\lstset{basicstyle=\footnotesize\ttfamily}
+\begin{lstlisting}
+<path to>/glass [<name> <value>]...
+\end{lstlisting}
+Ouput data files will be generated in the current working directory. Example:
+\lstset{basicstyle=\footnotesize\ttfamily}
+\begin{lstlisting}
+glass seed 2434 L 60 phiv 0.005 T 0.18 dt 1e3 ndt 50
+\end{lstlisting}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\linewidth]{glass_screenshot.png}
+    \label{fig:glass_screenshot}
+\end{figure}
+
+\subsection{Concurrent runs in batch}\label{sub:runbatchglass}
+
+The executable \texttt{batchglass} can perform multiple runs, with one thread dedicated for each. This is suitable for multicore or multiprocessor systems, and for generating a lot of data with least human intervention. The input parameters of all runs are supplied in a single batch file, in which each run is specified by one line with the format
+\lstset{basicstyle=\footnotesize\ttfamily}
+\begin{lstlisting}
+<rundir> [<name> <value>]...
+\end{lstlisting}
+where \texttt{<rundir>} is the relative path where data files for that run will be saved.
+
+Example batch file for macromode:
+\lstset{basicstyle=\tiny\ttfamily}
+\begin{lstlisting}
+T0220/v014/r01 seed 65596257 L 100 N 9860 g0 -0.5 T 0.220 ap 2 resume 1 dt 7.7e+00 ndt 10000
+T0220/v018/r01 seed 57851882 L 100 N 9820 g0 -0.5 T 0.220 ap 2 resume 1 dt 6.0e+00 ndt 10000
+T0220/v023/r01 seed 89610750 L 100 N 9770 g0 -0.5 T 0.220 ap 2 resume 1 dt 4.8e+00 ndt 10000
+T0220/v030/r01 seed 41735407 L 100 N 9700 g0 -0.5 T 0.220 ap 2 resume 1 dt 3.6e+00 ndt 10000
+T0220/v039/r01 seed 08954296 L 100 N 9610 g0 -0.5 T 0.220 ap 2 resume 1 dt 2.9e+00 ndt 10000
+T0220/v050/r01 seed 16960722 L 100 N 9500 g0 -0.5 T 0.220 ap 2 resume 1 dt 2.2e+00 ndt 10000
+\end{lstlisting}
+
+Example batch file for micromode:
+\lstset{basicstyle=\tiny\ttfamily}
+\begin{lstlisting}
+T0180/v005/r04 seed 0936 L 100 N 9950 g0 -0.5 T 0.18 out 1 nmcs 50000000 dt 8.4e-5 calmsd 1 calsisf 1 k 15 calfpcf 1 q 1,2
+T0180/v006/r04 seed 9331 L 100 N 9940 g0 -0.5 T 0.18 out 1 nmcs 50000000 dt 6.9e-5 calmsd 1 calsisf 1 k 15 calfpcf 1 q 1,2
+T0180/v008/r04 seed 0572 L 100 N 9920 g0 -0.5 T 0.18 out 1 nmcs 50000000 dt 4.9e-5 calmsd 1 calsisf 1 k 15 calfpcf 1 q 1,2
+T0180/v011/r04 seed 9398 L 100 N 9890 g0 -0.5 T 0.18 out 1 nmcs 50000000 dt 3.7e-5 calmsd 1 calsisf 1 k 15 calfpcf 1 q 1,2
+T0180/v014/r04 seed 2671 L 100 N 9860 g0 -0.5 T 0.18 out 1 nmcs 50000000 dt 2.9e-5 calmsd 1 calsisf 1 k 15 calfpcf 1 q 1,2
+\end{lstlisting}
+
+Finally, run the simulations specified in the batch file with
+\lstset{basicstyle=\footnotesize\ttfamily}
+\begin{lstlisting}
+<path to>/batchglass <batchfile> [<maxNumThreads>]
+\end{lstlisting}
+
+\section{Data processing}\label{sec:data}
+
+The data generated by the simulation program can be readily processed and analyzed with the help of MATLAB, or other numerical software. I would not go into details here. The MATLAB scripts I used are provided in \texttt{./matlab/}
+
+\section{Further research \& development}\label{sec:further}
+
+Possible further work includes but is not limited to
+
+\begin{enumerate}
+\item Analytical calculations on the model
+\item Other measurements, e.g. van Hove function $G_s(r,t)$, linear response $\chi_T(\omega)$
+\item Extending to cubic lattice in 3D
+\item Using a different bond energy distribution $g(V_{ijkl})$ to change fragility, e.g. Gaussian, or bimodal
+\item Introducing other types of interactions to the Hamiltonian, e.g. between next-nearest neighbors (NNN), and possibly applying the free-surface condition
+\item Introducing other types of events to the dynamics, e.g. coherent hoppings of multiple voids, and particle insertion/deletion ($\mu V T$ ensemble)
+\item Using different system sizes to investigate finite-size effects
+\item Modify the quenched disorder in the interactions, e.g. depending only on particle indices not the lattice sites
+\end{enumerate}
+
+\end{document}

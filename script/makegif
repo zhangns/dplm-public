@@ -1,0 +1,11 @@
+#!/bin/bash
+INFILES=*.png
+OUTFILE=animated.gif
+DELAY=50 # x0.01s
+LOOP=0 # Infinite loop
+
+if [ "$#" -eq 1 ]; then
+    DELAY=$1
+fi
+
+convert -delay $DELAY +page $INFILES -loop $LOOP $OUTFILE

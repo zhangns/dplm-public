@@ -1,0 +1,9 @@
+#!/bin/bash
+OUTFILE=movie.mp4
+FRAMERATE=30
+
+if [ "$#" -eq 1 ]; then
+    FRAMERATE=$1
+fi
+
+ffmpeg -y -framerate $FRAMERATE -i %05d.png -profile:v baseline -preset slower -c:v libx264 -pix_fmt yuv420p -crf 1 $OUTFILE
